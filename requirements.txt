@@ -1,0 +1,15 @@
+uvicorn
+dotenv
+fastapi
+sqlalchemy
+Pillow
+imageio-ffmpeg
+tavily
+python-multipart
+psycopg[binary]
+# openai-whisper
+# transformers 
+# accelerate 
+# sentencepiece 
+# safetensors
+# huggingface_hub
