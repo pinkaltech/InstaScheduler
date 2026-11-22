@@ -1,8 +1,9 @@
 # Instagram Reel Scheduler — Full Integration
 
 ## What this is
-A complete, runnable MVP: upload a ZIP of reel videos → the backend processes each reel
-(transcription → content AI → thumbnail → Tavily hashtags → schedule → publish to Instagram).
+A runnable app: upload a ZIP containing reel videos and the app extracts only video
+files, generates a thumbnail for each, queues them for automatic publication, and
+removes published video and thumbnail assets after success.
 
 ## My verdict on the two repos/architectures you shared
 
@@ -18,17 +19,19 @@ A complete, runnable MVP: upload a ZIP of reel videos → the backend processes 
 - **Simpler path**: single FastAPI + SQLite + local AI (Whisper, Pillow, Pollinations) = $0 running cost.
 - Upgrade to cloud only when you need the scheduler to survive laptop shutdown.
 
-## Pipeline per reel
+## Automatic pipeline per reel
 ```
-reel.mp4
-  │
-  ├─ FFmpeg → audio.wav + frame.png
-  ├─ Whisper (local) → transcript
-  ├─ LLM (Groq free / OpenRouter / local) → {topic, hook, caption, thumbnail_text, keywords}
-  ├─ Pollinations (free) + Pillow → trendy thumbnail with bold text
-  ├─ Tavily agent → trending hashtags
-  └─ Scheduler → publish to Instagram via Meta Graph API
+ZIP upload
+  ├─ Extract video files only (ZIP is not retained)
+  ├─ Generate a distinct thumbnail per video
+  ├─ Process and automatically schedule each reel
+  └─ Publish when due, then remove its video and thumbnail files
 ```
+
+No separate processing or scheduling button is needed. The uploaded ZIP itself is
+not retained; non-video files inside it are ignored. Each reel receives a distinct
+public thumbnail URL. Published local source files and their temporary public
+copies are removed after Instagram confirms publication.
 
 ## Prerequisites
 - Python 3.10+ (the venv already exists)
@@ -54,11 +57,11 @@ uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
 Open http://localhost:8000
 
 ## API
-- POST /api/upload — upload ZIP
-- POST /api/process/{id} — process one reel
-- POST /api/process-all — process all uploaded reels
+- POST /api/upload — upload ZIP and automatically start processing/scheduling
+- POST /api/process/{id} — manually reprocess one reel (optional)
+- POST /api/process-all — manually process pending reels (optional)
 - GET  /api/jobs — list jobs
-- POST /api/schedule — schedule reels (reel_ids, base_time, interval_hours)
+- POST /api/schedule — manually schedule ready reels (optional)
 - POST /api/publish/{id} — publish now
 - GET  /api/config — get saved credentials
 - POST /api/config — save credentials
@@ -69,10 +72,7 @@ This app uses a **local scheduler** (background thread polling SQLite) which is 
 reliable regardless of Meta's support. The Reel is published by calling `media_publish`
 at the scheduled time.
 
-## Free thumbnail approach (why this works)
-Trendy modern reels are usually: a video frame + gradient overlay + big bold text.
-We do exactly that:
-1. Extract best frame via FFmpeg
-2. Optionally generate AI background via Pollinations (free)
-3. Composite dark overlay + Instagram-red accent bar + bold white text with shadow
-Result looks like a modern Reel thumbnail, costs $0, works offline.
+## Thumbnail generation
+The app extracts a frame at two seconds with FFmpeg, then uses Pillow to add a
+dark overlay and bold caption text. Each reel's thumbnail is stored separately
+and exposed at a distinct public URL.

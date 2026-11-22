@@ -1,12 +1,14 @@
 uvicorn
 dotenv
 fastapi
-sqlalchemy
+sqlalchemy==2.0.39
 Pillow
 imageio-ffmpeg
 tavily
 python-multipart
 psycopg[binary]
+pg8000
+# psycopg2 
 # openai-whisper
 # transformers 
 # accelerate 

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Reel Scheduler</title>
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --card: #141415;
+      --border: #27272a;
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #e11d48;
+      --accent-hover: #be123c;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; }
+
+    /* Cards */
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; margin-bottom: 20px;
+    }
+    .card-title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #3f3f46; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--error); color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Forms */
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .form-group { flex: 1; min-width: 200px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+    }
+
+    /* Upload zone */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 48px; text-align: center;
+      transition: all 0.2s ease; cursor: pointer;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent); background: rgba(225, 29, 72, 0.05);
+    }
+    .drop-zone p { margin: 8px 0 0; color: var(--muted); }
+
+    /* Reel list */
+    .reel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .reel-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .reel-thumb {
+      width: 100%; aspect-ratio: 9/16; object-fit: cover; background: var(--bg);
+    }
+    .reel-info { padding: 12px; }
+    .reel-filename { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .reel-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-pending { background: var(--muted); }
+    .status-extracting { background: var(--warning); }
+    .status-transcribing { background: var(--warning); }
+    .status-analyzing { background: var(--warning); }
+    .status-thumbnail { background: var(--warning); }
+    .status-hashtags { background: var(--warning); }
+    .status-ready { background: var(--success); }
+    .status-scheduled { background: #8b5cf6; }
+    .status-publishing { background: var(--warning); }
+    .status-published { background: var(--success); }
+    .status-failed { background: var(--error); }
+
+    .reel-actions { display: flex; gap: 8px; margin-top: 12px; padding: 0 12px 12px; }
+    .reel-actions .btn { flex: 1; font-size: 12px; padding: 8px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+      align-items: center; justify-content: center; z-index: 100; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .modal-body { padding: 20px; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .tab { padding: 12px 20px; background: none; border: none; color: var(--muted); font-weight: 500; cursor: pointer; }
+    .tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); margin-bottom: -1px; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+      background: rgba(225, 29, 72, 0.15); color: var(--accent);
+    }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 8px; z-index: 200; animation: slideIn 0.3s ease; }
+    .toast.success { background: var(--success); color: white; }
+    .toast.error { background: var(--error); color: white; }
+    .toast.info { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+    @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* Hashtags */
+    .hashtag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .hashtag { background: var(--border); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--accent); }
+
+    .muted { color: var(--muted); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📸 Instagram Reel Scheduler</h1>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button class="btn btn-secondary" onclick="openConfigModal()">⚙️ Config</button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('upload')">📤 Upload</button>
+      <button class="tab" onclick="showTab('process')">⚙️ Process</button>
+      <button class="tab" onclick="showTab('schedule')">📅 Schedule</button>
+      <button class="tab" onclick="showTab('library')">📚 Library</button>
+    </div>
+
+    <!-- Upload Tab -->
+    <div id="tab-upload" class="tab-panel">
+      <div class="card">
+        <h2>Upload ZIP of Reels</h2>
+        <p class="muted">Upload a .zip containing your reel videos (MP4, MOV, MKV, AVI, WebM, M4V). We'll extract each one.</p>
+        <div class="drop-zone" id="dropZone">
+          <div style="font-size: 48px;">📦</div>
+          <p>Drag & drop ZIP here or click to select</p>
+          <input type="file" id="zipInput" accept=".zip" style="display: none;">
+        </div>
+        <div id="uploadStatus" class="muted" style="margin-top: 12px;"></div>
+      </div>
+    </div>
+
+    <!-- Process Tab -->
+    <div id="tab-process" class="tab-panel" style="display: none;">
+      <div class="card">
+        <h2>Processing Queue</h2>
+        <p class="muted">Processing and scheduling start automatically after ZIP upload.</p>
+        <div class="reel-grid" id="processGrid"></div>
+      </div>
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="tab-schedule" class="tab-panel" style="display: none;">
+      <div class="card">
+        <h2>Automatic Publishing Queue</h2>
+        <p class="muted">Reels are scheduled after thumbnail processing. The first is queued immediately; later Reels are spaced 3 hours apart.</p>
+        <div class="reel-grid" id="scheduleGrid"></div>
+      </div>
+    </div>
+
+    <!-- Library Tab -->
+    <div id="tab-library" class="tab-panel" style="display: none;">
+      <div class="card">
+        <div class="card-title">
+          <h2>All Reels</h2>
+          <button class="btn btn-secondary" onclick="loadLibrary()">🔄 Refresh</button>
+        </div>
+        <div class="reel-grid" id="libraryGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Modal -->
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Configuration</h2>
+        <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>IG User ID</label>
+          <input type="text" id="cfgIgUserId" placeholder="178414...">
+        </div>
+        <div class="form-group">
+          <label>IG Access Token</label>
+          <input type="password" id="cfgIgToken" placeholder="EAA...">
+        </div>
+        <div class="form-group">
+          <label>Tavily API Key</label>
+          <input type="password" id="cfgTavily" placeholder="tvly-...">
+        </div>
+        <div class="form-group">
+          <label>LLM API Key (Groq free tier)</label>
+          <input type="password" id="cfgLlmKey" placeholder="gsk_...">
+        </div>
+        <div class="form-group">
+          <label>LLM Base URL</label>
+          <input type="text" id="cfgLlmUrl" value="https://api.groq.com/openai/v1">
+        </div>
+        <div class="form-group">
+          <label>LLM Model</label>
+          <input type="text" id="cfgLlmModel" value="llama-3.1-8b-instant">
+        </div>
+        <div class="form-group">
+          <label>Public Base URL (ngrok for testing)</label>
+          <input type="text" id="cfgPublicUrl" value="http://localhost:8000">
+        </div>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="saveConfig()">Save Config</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reel Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="detailTitle">Reel Details</h2>
+        <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div id="toastContainer"></div>
+
+  <script>
+    // ===== State =====
+    let reels = [];
+
+    // ===== API =====
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // ===== Toast =====
+    function toast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    // ===== Tabs =====
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(`tab-${name}`).style.display = 'block';
+      if (name === 'process') loadProcess();
+      if (name === 'schedule') loadSchedule();
+      if (name === 'library') loadLibrary();
+    }
+    document.querySelectorAll('.tab').forEach(t => {
+      t.dataset.tab = t.textContent.trim().toLowerCase().replace('📤 ', '').replace('⚙️ ', '').replace('📅 ', '').replace('📚 ', '');
+      t.onclick = () => showTab(t.dataset.tab);
+    });
+
+    // ===== Upload =====
+    const dropZone = document.getElementById('dropZone');
+    const zipInput = document.getElementById('zipInput');
+
+    dropZone.onclick = () => zipInput.click();
+    dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('drag-over'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('drag-over');
+    dropZone.ondrop = e => {
+      e.preventDefault(); dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0]);
+    };
+    zipInput.onchange = e => e.target.files[0] && handleUpload(e.target.files[0]);
+
+    async function handleUpload(file) {
+      if (!file.name.toLowerCase().endsWith('.zip')) { toast('Please upload a .zip file', 'error'); return; }
+      const formData = new FormData(); formData.append('file', file);
+      document.getElementById('uploadStatus').textContent = 'Uploading...';
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        toast(`Uploaded ${data.count} reels. Processing started automatically.`, 'success');
+        document.getElementById('uploadStatus').textContent = `✅ ${data.count} reels added; processing and scheduling started automatically`;
+        zipInput.value = '';
+        loadLibrary();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ===== Load Data =====
+    async function loadProcess() {
+      const res = await api('/api/jobs');
+      reels = res.reels;
+      renderGrid('processGrid', reels.filter(r => r.status !== 'published'), 'process');
+    }
+
+    async function loadSchedule() {
+      const res = await api('/api/jobs');
+      reels = res.reels;
+      renderGrid('scheduleGrid', reels.filter(r => ['ready', 'scheduled', 'publishing'].includes(r.status)), 'schedule');
+    }
+
+    async function loadLibrary() {
+      const res = await api('/api/jobs');
+      reels = res.reels;
+      renderGrid('libraryGrid', reels, 'library');
+    }
+
+    function renderGrid(containerId, items, mode) {
+      const grid = document.getElementById(containerId);
+      if (!items.length) {
+        grid.innerHTML = `<div class="muted" style="grid-column: 1/-1; text-align: center; padding: 40px;">No reels${mode === 'process' ? ' to process' : mode === 'schedule' ? ' in the automatic queue' : ''}.</div>`;
+        return;
+      }
+      grid.innerHTML = items.map(r => `
+        <div class="reel-card" onclick="openDetail(${r.id})" style="cursor: pointer">
+          ${r.thumbnail ? `<img class="reel-thumb" src="${r.thumbnail}?t=${Date.now()}" alt="">` : '<div class="reel-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted)">🎬</div>'}
+          <div class="reel-info">
+            <div class="reel-filename" title="${r.filename}">${r.filename}</div>
+            <div class="reel-status">
+              <span class="status-dot status-${r.status}"></span>
+              <span>${r.status.toUpperCase()}</span>
+            </div>
+            ${mode === 'schedule' && r.scheduled_at ? `<div class="muted">${new Date(r.scheduled_at).toLocaleString()}</div>` : ''}
+            <div class="reel-actions">
+              ${r.status === 'ready' ? `<button class="btn btn-success" onclick="event.stopPropagation(); publishNow(${r.id})">Publish</button>` : ''}
+              ${r.status === 'scheduled' ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); openDetail(${r.id})">View</button>` : ''}
+              ${r.status === 'published' ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); openDetail(${r.id})">View</button>` : ''}
+              ${r.status !== 'published' && r.status !== 'scheduled' ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); openDetail(${r.id})">Details</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ===== Actions =====
+    async function publishNow(id) {
+      if (!confirm('Publish this reel NOW?')) return;
+      try {
+        await api(`/api/publish/${id}`, { method: 'POST' });
+        toast('Published!', 'success');
+        loadLibrary();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ===== Detail Modal =====
+    function openDetail(id) {
+      const r = reels.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('detailTitle').textContent = r.filename;
+      document.getElementById('detailBody').innerHTML = `
+        ${r.thumbnail ? `<img src="${r.thumbnail}?t=${Date.now()}" style="width:100%;border-radius:8px;margin-bottom:16px">` : ''}
+        <div class="mono"><strong>Status:</strong> ${r.status.toUpperCase()}</div>
+        ${r.topic ? `<div class="muted"><strong>Topic:</strong> ${r.topic}</div>` : ''}
+        ${r.hook ? `<div class="muted"><strong>Hook:</strong> ${r.hook}</div>` : ''}
+        ${r.caption ? `<div style="margin-top:12px;white-space:pre-wrap"><strong>Caption:</strong><br>${r.caption}</div>` : ''}
+        ${r.hashtags && r.hashtags.length ? `
+          <div style="margin-top:12px"><strong>Hashtags:</strong>
+            <div class="hashtag-list">${r.hashtags.map(h => `<span class="hashtag">${h}</span>`).join('')}</div>
+          </div>` : ''}
+        ${r.scheduled_at ? `<div class="muted"><strong>Scheduled:</strong> ${new Date(r.scheduled_at).toLocaleString()}</div>` : ''}
+        ${r.published_at ? `<div class="muted"><strong>Published:</strong> ${new Date(r.published_at).toLocaleString()}</div>` : ''}
+        ${r.error ? `<div style="color:var(--error);margin-top:12px"><strong>Error:</strong> ${r.error}</div>` : ''}
+        ${r.id ? `<div class="muted mono">ID: ${r.id}</div>` : ''}
+      `;
+      document.getElementById('detailModal').classList.add('open');
+    }
+    function closeDetailModal() { document.getElementById('detailModal').classList.remove('open'); }
+
+    // ===== Config Modal =====
+    function openConfigModal() {
+      loadConfig();
+      document.getElementById('configModal').classList.add('open');
+    }
+    function closeConfigModal() { document.getElementById('configModal').classList.remove('open'); }
+
+    async function loadConfig() {
+      try {
+        const res = await api('/api/config');
+        document.getElementById('cfgIgUserId').value = res.IG_USER_ID || '';
+        document.getElementById('cfgIgToken').value = res.IG_ACCESS_TOKEN || '';
+        document.getElementById('cfgTavily').value = res.TAVILY_API_KEY || '';
+        document.getElementById('cfgLlmKey').value = res.LLM_API_KEY || '';
+        document.getElementById('cfgLlmUrl').value = res.LLM_BASE_URL || 'https://api.groq.com/openai/v1';
+        document.getElementById('cfgLlmModel').value = res.LLM_MODEL || 'llama-3.1-8b-instant';
+        document.getElementById('cfgPublicUrl').value = res.PUBLIC_BASE_URL || 'http://localhost:8000';
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function saveConfig() {
+      const payload = {
+        IG_USER_ID: document.getElementById('cfgIgUserId').value,
+        IG_ACCESS_TOKEN: document.getElementById('cfgIgToken').value,
+        TAVILY_API_KEY: document.getElementById('cfgTavily').value,
+        LLM_API_KEY: document.getElementById('cfgLlmKey').value,
+        LLM_BASE_URL: document.getElementById('cfgLlmUrl').value,
+        LLM_MODEL: document.getElementById('cfgLlmModel').value,
+        PUBLIC_BASE_URL: document.getElementById('cfgPublicUrl').value,
+      };
+      try {
+        await api('/api/config', { method: 'POST', body: JSON.stringify(payload) });
+        toast('Config saved', 'success');
+        closeConfigModal();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(el => {
+      el.onclick = e => { if (e.target === el) el.classList.remove('open'); };
+    });
+
+    // Init
+    loadLibrary();
+  </script>
+</body>
+</html>
